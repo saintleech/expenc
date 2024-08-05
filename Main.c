@@ -25,6 +25,8 @@ void      listMovements(Movement* movements);
 Movement* createMovement(MovementType type, float amount);
 void      addMovement(Movement** movements, MovementType type, float amount);
 
+float getMovementSum(Movement* movements);
+
 int main()
 {
   Movement* movements = NULL;
@@ -35,6 +37,9 @@ int main()
   addMovement(&movements, PROFIT, 10.f);
   addMovement(&movements, PROFIT, 10.f);
   listMovements(movements);
+
+  float sum = getMovementSum(movements);
+  printf("-- Sum: %s\n", formatMovementAmount(sum));
 
   return EXIT_SUCCESS;
 }
@@ -100,4 +105,19 @@ void addMovement(Movement** movements, MovementType type, float amount)
     head = head->next;
   }
   head->next = newMovement;
+}
+
+float getMovementSum(Movement* movements)
+{
+  float sum = 0.f;
+  Movement* head = movements;
+
+  if (head == NULL) return sum;
+
+  while (head != NULL)
+  {
+    sum = head->type == PROFIT ? (sum + head->amount) : (sum - head->amount);
+    head = head->next;
+  }
+  return sum;
 }
