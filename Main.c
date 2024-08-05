@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define FORMATTED_AMOUNT_MAX_LEN 32
+#define FORMATTED_AMOUNT_MAX_LEN 24
 
 const char* CURRENCY_STRING = "$";
 
@@ -21,20 +21,20 @@ typedef struct Movement
 const char* formatMovementType(MovementType type);
 char*       formatMovementAmount(float amount);
 
+void      listMovements(Movement* movements);
+Movement* createMovement(MovementType type, float amount);
+void      addMovement(Movement** movements, MovementType type, float amount);
+
 int main()
 {
-  Movement movement =
-  {
-    .type = PROFIT,
-    .amount = 10.f,
-    .next = NULL,
-  };
-  printf(
-    "%s %s %p\n",
-    formatMovementType(movement.type),
-    formatMovementAmount(movement.amount),
-    movement.next
-  );
+  Movement* movements = NULL;
+
+  addMovement(&movements, PROFIT, 10.f);
+  addMovement(&movements, LOSS,   10.f);
+  addMovement(&movements, LOSS,   10.f);
+  addMovement(&movements, PROFIT, 10.f);
+  addMovement(&movements, PROFIT, 10.f);
+  listMovements(movements);
 
   return EXIT_SUCCESS;
 }
@@ -56,4 +56,48 @@ char* formatMovementAmount(float amount)
   static char formattedString[FORMATTED_AMOUNT_MAX_LEN];
   sprintf(formattedString, "%.2f %s", amount, CURRENCY_STRING);
   return formattedString;
+}
+
+void listMovements(Movement* movements)
+{
+  Movement* head = movements;
+  if (head == NULL) return;
+
+  while (head != NULL)
+  {
+    printf(
+      "%-6s %s %p\n",
+      formatMovementType(head->type),
+      formatMovementAmount(head->amount),
+      head->next
+    );
+    head = head->next;
+  }
+}
+
+Movement* createMovement(MovementType type, float amount)
+{
+  Movement* movement = (Movement*)malloc(sizeof(Movement));
+  movement->type = type;
+  movement->amount = amount;
+  movement->next = NULL;
+  return movement;
+}
+
+void addMovement(Movement** movements, MovementType type, float amount)
+{
+  Movement* newMovement = createMovement(type, amount);
+
+  if (*movements == NULL)
+  {
+    *movements = newMovement;
+    return;
+  }
+
+  Movement* head = *movements;
+  while (head->next != NULL)
+  {
+    head = head->next;
+  }
+  head->next = newMovement;
 }
