@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <time.h>
 
@@ -23,6 +24,8 @@ typedef struct Movement
   struct Movement* next;
 } Movement;
 
+typedef bool (*MovementFilterFn)(Movement* movement);
+
 time_t getTimeFromString(const char* timeString);
 char*  getStringFromTime(time_t* time);
 
@@ -34,6 +37,10 @@ Movement* createMovement(MovementType type, float amount, time_t time);
 void      addMovement(Movement** movements, MovementType type, float amount, time_t time);
 
 float getMovementSum(Movement* movements);
+
+bool      isProfit(Movement* movement);
+bool      isLoss(Movement* movement);
+Movement* filterMovements(Movement* movements, MovementFilterFn predicate);
 
 int main()
 {
@@ -48,6 +55,14 @@ int main()
 
   float sum = getMovementSum(movements);
   printf("-- Sum: %s\n", formatMovementAmount(sum));
+
+  Movement* profits = filterMovements(movements, isProfit);
+  Movement* losses = filterMovements(movements, isLoss);
+
+  printf("-- Profits\n");
+  listMovements(profits);
+  printf("-- Losses\n");
+  listMovements(losses);
 
   return EXIT_SUCCESS;
 }
@@ -165,4 +180,41 @@ float getMovementSum(Movement* movements)
     head = head->next;
   }
   return sum;
+}
+
+bool isProfit(Movement* movement)
+{
+  return movement->type == PROFIT;
+}
+
+bool isLoss(Movement* movement)
+{
+  return movement->type == LOSS;
+}
+
+Movement* filterMovements(Movement* movements, MovementFilterFn predicate)
+{
+  Movement* head = NULL;
+  Movement* tail = NULL;
+
+  while (movements != NULL)
+  {
+    if (predicate(movements))
+    {
+      Movement* movement = createMovement(movements->type, movements->amount, movements->time);
+      if (head == NULL)
+      {
+        head = movement;
+        tail = head;
+      }
+      else
+      {
+        tail->next = movement;
+        tail = movement;
+      }
+    }
+    movements = movements->next;
+  }
+
+  return head;
 }
