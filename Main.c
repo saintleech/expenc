@@ -42,6 +42,7 @@ typedef struct Movement
 } Movement;
 
 typedef bool (*MovementFilterFn)(Movement* movement);
+typedef bool (*MovementFilterWithParameterFn)(Movement* movement, void* parameter);
 
 typedef uint8_t MovementListingFlag;
 const MovementListingFlag SHOW_TYPE     = 1 << 0;
@@ -65,9 +66,12 @@ void      addMovement(Movement** movements, MovementType type, MovementCategory 
 float getMovementSum(Movement* movements);
 float getMovementSum(Movement* movements);
 
-bool      isProfit(Movement* movement);
-bool      isLoss(Movement* movement);
+bool isProfit(Movement* movement);
+bool isLoss(Movement* movement);
+bool isOfCategory(Movement* movement, void* category);
+
 Movement* filterMovements(Movement* movements, MovementFilterFn predicate);
+Movement* filterMovementsWithParameter(Movement* movements, MovementFilterWithParameterFn predicate, void* parameter);
 
 int main()
 {
@@ -82,6 +86,14 @@ int main()
 
   float sum = getMovementSum(movements);
   printf("-- Sum: %s\n", formatMovementAmount(sum));
+  printf("-- Job Movements\n");
+
+  Movement* jobMovements = filterMovementsWithParameter(
+    movements,
+    isOfCategory,
+    JOB
+  );
+  listMovements(jobMovements);
 
   return EXIT_SUCCESS;
 }
@@ -215,7 +227,7 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
     }
     if (flags & SHOW_CATEGORY)
     {
-      if (flags & SHOW_TYPE)
+      if (flags & 0b1)
         printf(" ");
       printf(
         "%s%-*s%s",
@@ -227,13 +239,13 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
     }
     if (flags & SHOW_LABEL)
     {
-      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY)
+      if (flags & 0b11)
         printf(" ");
       printf("%-*s", maxLabelLen, head->label);
     }
     if (flags & SHOW_AMOUNT)
     {
-      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_LABEL)
+      if (flags & 0b111)
         printf(" ");
       printf(
         "%s%*s%s",
@@ -245,7 +257,7 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
     }
     if (flags & SHOW_TIME)
     {
-      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_LABEL || flags & SHOW_AMOUNT)
+      if (flags & 0b1111)
         printf(" ");
       printf(
         "%s",
@@ -312,6 +324,11 @@ bool isLoss(Movement* movement)
   return movement->type == LOSS;
 }
 
+bool isOfCategory(Movement* movement, void* category)
+{
+  return movement->category == (MovementCategory)category;
+}
+
 Movement* filterMovements(Movement* movements, MovementFilterFn predicate)
 {
   Movement* head = NULL;
@@ -320,6 +337,33 @@ Movement* filterMovements(Movement* movements, MovementFilterFn predicate)
   while (movements != NULL)
   {
     if (predicate(movements))
+    {
+      Movement* movement = createMovement(movements->type, movements->category, movements->label, movements->amount, movements->time);
+      if (head == NULL)
+      {
+        head = movement;
+        tail = head;
+      }
+      else
+      {
+        tail->next = movement;
+        tail = movement;
+      }
+    }
+    movements = movements->next;
+  }
+
+  return head;
+}
+
+Movement* filterMovementsWithParameter(Movement* movements, MovementFilterWithParameterFn predicate, void* parameter)
+{
+  Movement* head = NULL;
+  Movement* tail = NULL;
+
+  while (movements != NULL)
+  {
+    if (predicate(movements, parameter))
     {
       Movement* movement = createMovement(movements->type, movements->category, movements->label, movements->amount, movements->time);
       if (head == NULL)
