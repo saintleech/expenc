@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
@@ -40,6 +41,12 @@ typedef struct Movement
 
 typedef bool (*MovementFilterFn)(Movement* movement);
 
+typedef uint8_t MovementListingFlag;
+const MovementListingFlag SHOW_TYPE     = 1 << 0;
+const MovementListingFlag SHOW_CATEGORY = 1 << 1;
+const MovementListingFlag SHOW_AMOUNT   = 1 << 2;
+const MovementListingFlag SHOW_TIME     = 1 << 3;
+
 time_t getTimeFromString(const char* timeString);
 char*  getStringFromTime(time_t* time);
 
@@ -48,6 +55,7 @@ const char* formatMovementCategory(MovementCategory category);
 char*       formatMovementAmount(float amount);
 
 void      listMovements(Movement* movements);
+void      listMovementsWithOptions(Movement* movements, MovementListingFlag flags);
 Movement* createMovement(MovementType type, MovementCategory category, float amount, time_t time);
 void      addMovement(Movement** movements, MovementType type, MovementCategory category, float amount, time_t time);
 
@@ -66,7 +74,10 @@ int main()
   addMovement(&movements, LOSS,   TRANSPORT, 10.f, getTimeFromString("2024-01-01 12:02:00"));
   addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:03:00"));
   addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:04:00"));
-  listMovements(movements);
+  listMovementsWithOptions(
+    movements,
+    SHOW_TYPE | SHOW_CATEGORY | SHOW_AMOUNT
+  );
 
   float sum = getMovementSum(movements);
   printf("-- Sum: %s\n", formatMovementAmount(sum));
@@ -161,7 +172,7 @@ void listMovements(Movement* movements)
   {
     bool isLoss = head->type == LOSS;
     printf(
-      "%-6s %-9s %s%s%s %s %p\n",
+      "%-6s %-9s %s%s%s %s\n",
       formatMovementType(head->type),
       formatMovementCategory(head->category),
       isLoss ? C_RED : C_GREEN,
@@ -170,6 +181,49 @@ void listMovements(Movement* movements)
       getStringFromTime(&head->time),
       head->next
     );
+    head = head->next;
+  }
+}
+
+void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
+{
+  Movement* head = movements;
+  if (head == NULL) return;
+
+  while (head != NULL)
+  {
+    bool isLoss = head->type == LOSS;
+    if (flags & SHOW_TYPE)
+    {
+      printf("%-6s", formatMovementType(head->type));
+    }
+    if (flags & SHOW_CATEGORY)
+    {
+      if (flags & SHOW_TYPE)
+        printf(" ");
+      printf("%-9s", formatMovementCategory(head->category));
+    }
+    if (flags & SHOW_AMOUNT)
+    {
+      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY)
+        printf(" ");
+      printf(
+        "%s%s%s",
+        isLoss ? C_RED : C_GREEN,
+        formatMovementAmount(head->amount),
+        C_RESET
+      );
+    }
+    if (flags & SHOW_TIME)
+    {
+      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_AMOUNT)
+        printf(" ");
+      printf(
+        "%s",
+        getStringFromTime(&head->time)
+      );
+    }
+    printf("\n");
     head = head->next;
   }
 }
