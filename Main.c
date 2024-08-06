@@ -10,8 +10,8 @@
 #define C_GREEN  "\033[32m"
 #define C_YELLOW "\033[33m"
 
-#define FORMATTED_AMOUNT_MAX_LEN 24
-#define FORMATTED_TIME_MAX_LEN   24
+#define FORMATTED_AMOUNT_MAX_LEN   24
+#define FORMATTED_TIME_MAX_LEN     24
 
 const char* CURRENCY_STRING = "$";
 
@@ -21,9 +21,18 @@ typedef enum MovementType
   LOSS,
 } MovementType;
 
+typedef enum MovementCategory
+{
+  JOB = 0,
+  FOOD,
+  TRANSPORT,
+  OTHER,
+} MovementCategory;
+
 typedef struct Movement
 {
   MovementType type;
+  MovementCategory category;
   float amount;
   time_t time;
   struct Movement* next;
@@ -35,11 +44,12 @@ time_t getTimeFromString(const char* timeString);
 char*  getStringFromTime(time_t* time);
 
 const char* formatMovementType(MovementType type);
+const char* formatMovementCategory(MovementCategory category);
 char*       formatMovementAmount(float amount);
 
 void      listMovements(Movement* movements);
-Movement* createMovement(MovementType type, float amount, time_t time);
-void      addMovement(Movement** movements, MovementType type, float amount, time_t time);
+Movement* createMovement(MovementType type, MovementCategory category, float amount, time_t time);
+void      addMovement(Movement** movements, MovementType type, MovementCategory category, float amount, time_t time);
 
 float getMovementSum(Movement* movements);
 
@@ -51,11 +61,11 @@ int main()
 {
   Movement* movements = NULL;
 
-  addMovement(&movements, PROFIT, 10.f, getTimeFromString("2024-01-01 12:00:00"));
-  addMovement(&movements, LOSS,   10.f, getTimeFromString("2024-01-01 12:01:00"));
-  addMovement(&movements, LOSS,   10.f, getTimeFromString("2024-01-01 12:02:00"));
-  addMovement(&movements, PROFIT, 10.f, getTimeFromString("2024-01-01 12:03:00"));
-  addMovement(&movements, PROFIT, 10.f, getTimeFromString("2024-01-01 12:04:00"));
+  addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:00:00"));
+  addMovement(&movements, LOSS,   FOOD,      10.f, getTimeFromString("2024-01-01 12:01:00"));
+  addMovement(&movements, LOSS,   TRANSPORT, 10.f, getTimeFromString("2024-01-01 12:02:00"));
+  addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:03:00"));
+  addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:04:00"));
   listMovements(movements);
 
   float sum = getMovementSum(movements);
@@ -119,6 +129,22 @@ const char* formatMovementType(MovementType type)
   return "N/A";
 }
 
+const char* formatMovementCategory(MovementCategory category)
+{
+  switch (category)
+  {
+    case JOB:
+      return "Job";
+    case FOOD:
+      return "Food";
+    case TRANSPORT:
+      return "Transport";
+    case OTHER:
+      return "Other";
+  }
+  return "N/A";
+}
+
 char* formatMovementAmount(float amount)
 {
   static char formattedString[FORMATTED_AMOUNT_MAX_LEN];
@@ -135,8 +161,9 @@ void listMovements(Movement* movements)
   {
     bool isLoss = head->type == LOSS;
     printf(
-      "%-6s %s%s%s %s %p\n",
+      "%-6s %-9s %s%s%s %s %p\n",
       formatMovementType(head->type),
+      formatMovementCategory(head->category),
       isLoss ? C_RED : C_GREEN,
       formatMovementAmount(head->amount),
       C_RESET,
@@ -147,19 +174,20 @@ void listMovements(Movement* movements)
   }
 }
 
-Movement* createMovement(MovementType type, float amount, time_t time)
+Movement* createMovement(MovementType type, MovementCategory category, float amount, time_t time)
 {
   Movement* movement = (Movement*)malloc(sizeof(Movement));
   movement->type = type;
+  movement->category = category;
   movement->amount = amount;
   movement->time = time;
   movement->next = NULL;
   return movement;
 }
 
-void addMovement(Movement** movements, MovementType type, float amount, time_t time)
+void addMovement(Movement** movements, MovementType type, MovementCategory category, float amount, time_t time)
 {
-  Movement* newMovement = createMovement(type, amount, time);
+  Movement* newMovement = createMovement(type, category, amount, time);
 
   if (*movements == NULL)
   {
@@ -209,7 +237,7 @@ Movement* filterMovements(Movement* movements, MovementFilterFn predicate)
   {
     if (predicate(movements))
     {
-      Movement* movement = createMovement(movements->type, movements->amount, movements->time);
+      Movement* movement = createMovement(movements->type, movements->category, movements->amount, movements->time);
       if (head == NULL)
       {
         head = movement;
