@@ -10,6 +10,7 @@
 #define C_RED    "\033[31m"
 #define C_GREEN  "\033[32m"
 #define C_YELLOW "\033[33m"
+#define C_CYAN   "\033[36m"
 
 #define FORMATTED_AMOUNT_MAX_LEN   24
 #define FORMATTED_TIME_MAX_LEN     24
@@ -72,26 +73,15 @@ int main()
 {
   Movement* movements = NULL;
 
-  addMovement(&movements, PROFIT, JOB,       "Label", 10.f, getTimeFromString("2024-01-01 12:00:00"));
-  addMovement(&movements, LOSS,   FOOD,      "Label", 10.f, getTimeFromString("2024-01-01 12:01:00"));
-  addMovement(&movements, LOSS,   TRANSPORT, "Label", 10.f, getTimeFromString("2024-01-01 12:02:00"));
-  addMovement(&movements, PROFIT, JOB,       "Label", 10.f, getTimeFromString("2024-01-01 12:03:00"));
-  addMovement(&movements, PROFIT, JOB,       "Label", 10.f, getTimeFromString("2024-01-01 12:04:00"));
-  listMovementsWithOptions(
-    movements,
-    SHOW_TYPE | SHOW_CATEGORY | SHOW_AMOUNT
-  );
+  addMovement(&movements, PROFIT, JOB, "Stole coins from work", 0.52f, getTimeFromString("2024-01-01 12:00:00"));
+  addMovement(&movements, LOSS, FOOD, "McDonald's Fries", 1.90f, getTimeFromString("2024-01-01 12:01:00"));
+  addMovement(&movements, LOSS, TRANSPORT, "Train to Regensburg", 79.9f, getTimeFromString("2024-01-01 12:02:00"));
+  addMovement(&movements, PROFIT, JOB, "Stole a laptop from work", 220.f, getTimeFromString("2024-01-01 12:03:00"));
+  addMovement(&movements, PROFIT, JOB, "Salary", 10.f, getTimeFromString("2024-01-01 12:04:00"));
+  listMovements(movements);
 
   float sum = getMovementSum(movements);
   printf("-- Sum: %s\n", formatMovementAmount(sum));
-
-  Movement* profits = filterMovements(movements, isProfit);
-  Movement* losses = filterMovements(movements, isLoss);
-
-  printf("%s-- Profits%s\n", C_YELLOW, C_RESET);
-  listMovements(profits);
-  printf("%s-- Losses%s\n", C_YELLOW, C_RESET);
-  listMovements(losses);
 
   return EXIT_SUCCESS;
 }
@@ -168,25 +158,10 @@ char* formatMovementAmount(float amount)
 
 void listMovements(Movement* movements)
 {
-  Movement* head = movements;
-  if (head == NULL) return;
-
-  while (head != NULL)
-  {
-    bool isLoss = head->type == LOSS;
-    printf(
-      "%-6s %-9s %s %s%s%s %s\n",
-      formatMovementType(head->type),
-      formatMovementCategory(head->category),
-      head->label,
-      isLoss ? C_RED : C_GREEN,
-      formatMovementAmount(head->amount),
-      C_RESET,
-      getStringFromTime(&head->time),
-      head->next
-    );
-    head = head->next;
-  }
+  listMovementsWithOptions(
+    movements,
+    SHOW_TYPE | SHOW_CATEGORY | SHOW_LABEL | SHOW_AMOUNT | SHOW_TIME
+  );
 }
 
 void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
@@ -194,32 +169,76 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
   Movement* head = movements;
   if (head == NULL) return;
 
+  int maxTypeLen     = 0;
+  int maxCategoryLen = 0;
+  int maxLabelLen    = 0;
+  int maxAmountLen   = 0;
+
+  while (head != NULL)
+  {
+    if (flags & SHOW_TYPE)
+    {
+      int len = strlen(formatMovementType(head->type));
+      if (len > maxTypeLen) maxTypeLen = len;
+    }
+    if (flags & SHOW_CATEGORY)
+    {
+      int len = strlen(formatMovementCategory(head->category));
+      if (len > maxCategoryLen) maxCategoryLen = len;
+    }
+    if (flags & SHOW_LABEL)
+    {
+      int len = strlen(head->label);
+      if (len > maxLabelLen) maxLabelLen = len;
+    }
+    if (flags & SHOW_AMOUNT)
+    {
+      int len = strlen(formatMovementAmount(head->amount));
+      if (len > maxAmountLen) maxAmountLen = len;
+    }
+    head = head->next;
+  }
+  head = movements;
+
   while (head != NULL)
   {
     bool isLoss = head->type == LOSS;
     if (flags & SHOW_TYPE)
     {
-      printf("%-6s", formatMovementType(head->type));
+      printf(
+        "%s%-*s%s",
+        isLoss ? C_RED : C_GREEN,
+        maxTypeLen,
+        formatMovementType(head->type),
+        C_RESET
+      );
     }
     if (flags & SHOW_CATEGORY)
     {
       if (flags & SHOW_TYPE)
         printf(" ");
-      printf("%-9s", formatMovementCategory(head->category));
+      printf(
+        "%s%-*s%s",
+        C_CYAN,
+        maxCategoryLen,
+        formatMovementCategory(head->category),
+        C_RESET
+      );
     }
     if (flags & SHOW_LABEL)
     {
       if (flags & SHOW_TYPE || flags & SHOW_CATEGORY)
         printf(" ");
-      printf("%s", head->label);
+      printf("%-*s", maxLabelLen, head->label);
     }
     if (flags & SHOW_AMOUNT)
     {
       if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_LABEL)
         printf(" ");
       printf(
-        "%s%s%s",
+        "%s%*s%s",
         isLoss ? C_RED : C_GREEN,
+        maxAmountLen,
         formatMovementAmount(head->amount),
         C_RESET
       );
