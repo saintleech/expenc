@@ -5,6 +5,11 @@
 #include <string.h>
 #include <time.h>
 
+#define C_RESET  "\033[0m"
+#define C_RED    "\033[31m"
+#define C_GREEN  "\033[32m"
+#define C_YELLOW "\033[33m"
+
 #define FORMATTED_AMOUNT_MAX_LEN 24
 #define FORMATTED_TIME_MAX_LEN   24
 
@@ -59,9 +64,9 @@ int main()
   Movement* profits = filterMovements(movements, isProfit);
   Movement* losses = filterMovements(movements, isLoss);
 
-  printf("-- Profits\n");
+  printf("%s-- Profits%s\n", C_YELLOW, C_RESET);
   listMovements(profits);
-  printf("-- Losses\n");
+  printf("%s-- Losses%s\n", C_YELLOW, C_RESET);
   listMovements(losses);
 
   return EXIT_SUCCESS;
@@ -128,10 +133,13 @@ void listMovements(Movement* movements)
 
   while (head != NULL)
   {
+    bool isLoss = head->type == LOSS;
     printf(
-      "%-6s %s %s %p\n",
+      "%-6s %s%s%s %s %p\n",
       formatMovementType(head->type),
+      isLoss ? C_RED : C_GREEN,
       formatMovementAmount(head->amount),
+      C_RESET,
       getStringFromTime(&head->time),
       head->next
     );
