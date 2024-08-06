@@ -34,6 +34,7 @@ typedef struct Movement
 {
   MovementType type;
   MovementCategory category;
+  const char* label;
   float amount;
   time_t time;
   struct Movement* next;
@@ -44,8 +45,9 @@ typedef bool (*MovementFilterFn)(Movement* movement);
 typedef uint8_t MovementListingFlag;
 const MovementListingFlag SHOW_TYPE     = 1 << 0;
 const MovementListingFlag SHOW_CATEGORY = 1 << 1;
-const MovementListingFlag SHOW_AMOUNT   = 1 << 2;
-const MovementListingFlag SHOW_TIME     = 1 << 3;
+const MovementListingFlag SHOW_LABEL    = 1 << 2;
+const MovementListingFlag SHOW_AMOUNT   = 1 << 3;
+const MovementListingFlag SHOW_TIME     = 1 << 4;
 
 time_t getTimeFromString(const char* timeString);
 char*  getStringFromTime(time_t* time);
@@ -56,9 +58,10 @@ char*       formatMovementAmount(float amount);
 
 void      listMovements(Movement* movements);
 void      listMovementsWithOptions(Movement* movements, MovementListingFlag flags);
-Movement* createMovement(MovementType type, MovementCategory category, float amount, time_t time);
-void      addMovement(Movement** movements, MovementType type, MovementCategory category, float amount, time_t time);
+Movement* createMovement(MovementType type, MovementCategory category, const char* label, float amount, time_t time);
+void      addMovement(Movement** movements, MovementType type, MovementCategory category, const char* label, float amount, time_t time);
 
+float getMovementSum(Movement* movements);
 float getMovementSum(Movement* movements);
 
 bool      isProfit(Movement* movement);
@@ -69,11 +72,11 @@ int main()
 {
   Movement* movements = NULL;
 
-  addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:00:00"));
-  addMovement(&movements, LOSS,   FOOD,      10.f, getTimeFromString("2024-01-01 12:01:00"));
-  addMovement(&movements, LOSS,   TRANSPORT, 10.f, getTimeFromString("2024-01-01 12:02:00"));
-  addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:03:00"));
-  addMovement(&movements, PROFIT, JOB,       10.f, getTimeFromString("2024-01-01 12:04:00"));
+  addMovement(&movements, PROFIT, JOB,       "Label", 10.f, getTimeFromString("2024-01-01 12:00:00"));
+  addMovement(&movements, LOSS,   FOOD,      "Label", 10.f, getTimeFromString("2024-01-01 12:01:00"));
+  addMovement(&movements, LOSS,   TRANSPORT, "Label", 10.f, getTimeFromString("2024-01-01 12:02:00"));
+  addMovement(&movements, PROFIT, JOB,       "Label", 10.f, getTimeFromString("2024-01-01 12:03:00"));
+  addMovement(&movements, PROFIT, JOB,       "Label", 10.f, getTimeFromString("2024-01-01 12:04:00"));
   listMovementsWithOptions(
     movements,
     SHOW_TYPE | SHOW_CATEGORY | SHOW_AMOUNT
@@ -172,9 +175,10 @@ void listMovements(Movement* movements)
   {
     bool isLoss = head->type == LOSS;
     printf(
-      "%-6s %-9s %s%s%s %s\n",
+      "%-6s %-9s %s %s%s%s %s\n",
       formatMovementType(head->type),
       formatMovementCategory(head->category),
+      head->label,
       isLoss ? C_RED : C_GREEN,
       formatMovementAmount(head->amount),
       C_RESET,
@@ -203,9 +207,15 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
         printf(" ");
       printf("%-9s", formatMovementCategory(head->category));
     }
-    if (flags & SHOW_AMOUNT)
+    if (flags & SHOW_LABEL)
     {
       if (flags & SHOW_TYPE || flags & SHOW_CATEGORY)
+        printf(" ");
+      printf("%s", head->label);
+    }
+    if (flags & SHOW_AMOUNT)
+    {
+      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_LABEL)
         printf(" ");
       printf(
         "%s%s%s",
@@ -216,7 +226,7 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
     }
     if (flags & SHOW_TIME)
     {
-      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_AMOUNT)
+      if (flags & SHOW_TYPE || flags & SHOW_CATEGORY || flags & SHOW_LABEL || flags & SHOW_AMOUNT)
         printf(" ");
       printf(
         "%s",
@@ -228,20 +238,21 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
   }
 }
 
-Movement* createMovement(MovementType type, MovementCategory category, float amount, time_t time)
+Movement* createMovement(MovementType type, MovementCategory category, const char* label, float amount, time_t time)
 {
   Movement* movement = (Movement*)malloc(sizeof(Movement));
   movement->type = type;
   movement->category = category;
+  movement->label = label;
   movement->amount = amount;
   movement->time = time;
   movement->next = NULL;
   return movement;
 }
 
-void addMovement(Movement** movements, MovementType type, MovementCategory category, float amount, time_t time)
+void addMovement(Movement** movements, MovementType type, MovementCategory category, const char* label, float amount, time_t time)
 {
-  Movement* newMovement = createMovement(type, category, amount, time);
+  Movement* newMovement = createMovement(type, category, label, amount, time);
 
   if (*movements == NULL)
   {
@@ -291,7 +302,7 @@ Movement* filterMovements(Movement* movements, MovementFilterFn predicate)
   {
     if (predicate(movements))
     {
-      Movement* movement = createMovement(movements->type, movements->category, movements->amount, movements->time);
+      Movement* movement = createMovement(movements->type, movements->category, movements->label, movements->amount, movements->time);
       if (head == NULL)
       {
         head = movement;
