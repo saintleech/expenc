@@ -65,6 +65,7 @@ void      listMovements(Movement* movements);
 void      listMovementsWithOptions(Movement* movements, MovementListingFlag flags);
 Movement* createMovement(MovementType type, MovementCategory category, char* label, float amount, time_t time);
 void      addMovement(Movement** movements, MovementType type, MovementCategory category, char* label, float amount, time_t time);
+void      addMovementToDatabase(Movement* movement, const char* filePath);
 
 float getMovementSum(Movement* movements);
 float getMovementSum(Movement* movements);
@@ -79,9 +80,6 @@ Movement* filterMovementsWithParameter(Movement* movements, MovementFilterWithPa
 int main(int argc, char** argv)
 {
   Movement* movements = readMovements("example.expc");
-  listMovements(movements);
-  printf("-----\n");
-
   addMovement(&movements, PROFIT, JOB, "Stole coins from work", 0.52f, getTimeFromString("2024-01-01 12:00:00"));
   addMovement(&movements, LOSS, FOOD, "McDonald's Fries", 1.90f, getTimeFromString("2024-01-01 12:01:00"));
   addMovement(&movements, LOSS, TRANSPORT, "Train to Regensburg", 79.9f, getTimeFromString("2024-01-01 12:02:00"));
@@ -194,7 +192,7 @@ Movement* readMovements(const char* filePath)
 
     sscanf(
       line,
-      "%d;%d;%f;%d;%s",
+      "%u;%u;%f;%ld;%[^\n]",
       &type,
       &category,
       &amount,
@@ -204,6 +202,7 @@ Movement* readMovements(const char* filePath)
     addMovement(&head, type, category, label, amount, time);
   }
 
+  fclose(movementsFile);
   return head;
 }
 
@@ -336,6 +335,26 @@ void addMovement(Movement** movements, MovementType type, MovementCategory categ
     head = head->next;
   }
   head->next = newMovement;
+}
+
+void addMovementToDatabase(Movement* movement, const char* filePath)
+{
+  FILE* movementsFile = fopen(filePath, "a");
+  if (movementsFile == NULL)
+  {
+    return;
+  }
+
+  fprintf(
+    movementsFile,
+    "%u;%u;%.2f;%ld;%s\n",
+    movement->type,
+    movement->category,
+    movement->amount,
+    movement->time,
+    movement->label
+  );
+  fclose(movementsFile);
 }
 
 float getMovementSum(Movement* movements)
