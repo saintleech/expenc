@@ -11,6 +11,7 @@
 #define C_GREEN  "\033[32m"
 #define C_YELLOW "\033[33m"
 #define C_CYAN   "\033[36m"
+#define S_BOLD   "\033[1m"
 
 #define DB_LINE_MAX_LEN          256
 #define LABEL_MAX_LEN            128
@@ -19,15 +20,17 @@
 
 const char* CURRENCY_STRING = "$";
 
+void clearInputBuffer();
+
 typedef enum MovementType
 {
-  PROFIT = 0,
+  PROFIT = 1,
   LOSS,
 } MovementType;
 
 typedef enum MovementCategory
 {
-  JOB = 0,
+  JOB = 1,
   FOOD,
   TRANSPORT,
   OTHER,
@@ -64,6 +67,7 @@ Movement* readMovements(const char* filePath);
 void      listMovements(Movement* movements);
 void      listMovementsWithOptions(Movement* movements, MovementListingFlag flags);
 Movement* createMovement(MovementType type, MovementCategory category, char* label, float amount, time_t time);
+Movement* inputMovement();
 void      addMovement(Movement** movements, MovementType type, MovementCategory category, char* label, float amount, time_t time);
 void      addMovementToDatabase(Movement* movement, const char* filePath);
 
@@ -79,26 +83,29 @@ Movement* filterMovementsWithParameter(Movement* movements, MovementFilterWithPa
 
 int main(int argc, char** argv)
 {
+  for (int i = 1; i < argc; i++)
+  {
+    if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--new") == 0)
+    {
+      Movement* movement = inputMovement();
+      addMovementToDatabase(movement, "example.expc");
+      return EXIT_SUCCESS;
+    }
+  }
+
   Movement* movements = readMovements("example.expc");
-  addMovement(&movements, PROFIT, JOB, "Stole coins from work", 0.52f, getTimeFromString("2024-01-01 12:00:00"));
-  addMovement(&movements, LOSS, FOOD, "McDonald's Fries", 1.90f, getTimeFromString("2024-01-01 12:01:00"));
-  addMovement(&movements, LOSS, TRANSPORT, "Train to Regensburg", 79.9f, getTimeFromString("2024-01-01 12:02:00"));
-  addMovement(&movements, PROFIT, JOB, "Stole a laptop from work", 220.f, getTimeFromString("2024-01-01 12:03:00"));
-  addMovement(&movements, PROFIT, JOB, "Salary", 10.f, getTimeFromString("2024-01-01 12:04:00"));
   listMovements(movements);
 
   float sum = getMovementSum(movements);
   printf("-- Sum: %s\n", formatMovementAmount(sum));
-  printf("-- Job Movements\n");
-
-  Movement* jobMovements = filterMovementsWithParameter(
-    movements,
-    isOfCategory,
-    JOB
-  );
-  listMovements(jobMovements);
 
   return EXIT_SUCCESS;
+}
+
+void clearInputBuffer()
+{
+  char c;
+  while ((c = getchar()) != '\n' && c != EOF) {}
 }
 
 time_t getTimeFromString(const char* timeString)
@@ -176,6 +183,14 @@ Movement* readMovements(const char* filePath)
   FILE* movementsFile = fopen(filePath, "r");
   if (movementsFile == NULL)
   {
+    fprintf(
+      stderr,
+      "%s%sError: Movement database \"%s\" does not exist!%s\n",
+      S_BOLD,
+      C_RED,
+      filePath,
+      C_RESET
+    );
     return NULL;
   }
 
@@ -316,6 +331,64 @@ Movement* createMovement(MovementType type, MovementCategory category, char* lab
   movement->amount = amount;
   movement->time = time;
   movement->next = NULL;
+  return movement;
+}
+
+Movement* inputMovement()
+{
+  Movement* movement = (Movement*)malloc(sizeof(Movement));
+  unsigned int type = 0;
+  unsigned int category = 0;
+  char* label = (char*)malloc(sizeof(char) * LABEL_MAX_LEN);
+  float amount = 0.f;
+  char timeString[FORMATTED_TIME_MAX_LEN];
+
+  printf("1 -> Profit\n");
+  printf("2 -> Loss\n\n");
+  printf("Select type\n");
+
+  while (type == 0)
+  {
+    printf("> ");
+    scanf("%d", &type);
+    clearInputBuffer();
+  }
+
+  printf("\n1 -> Job\n");
+  printf("2 -> Food\n");
+  printf("3 -> Transport\n");
+  printf("4 -> Other\n\n");
+  printf("Select category\n");
+
+  while (category == 0)
+  {
+    printf("> ");
+    scanf("%d", &category);
+    clearInputBuffer();
+  }
+
+  printf("Enter label\n");
+  printf("> ");
+  scanf("%[^\n]", label);
+    clearInputBuffer();
+
+  printf("Enter amount\n");
+  printf("> ");
+  scanf("%f", &amount);
+  clearInputBuffer();
+
+  printf("Enter time\n");
+  printf("> ");
+  scanf("%[^\n]", timeString);
+  clearInputBuffer();
+
+  movement->type = type;
+  movement->category = category;
+  movement->label = label;
+  movement->amount = amount;
+  movement->time = getTimeFromString(timeString);
+  movement->next = NULL;
+
   return movement;
 }
 
