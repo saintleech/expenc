@@ -12,8 +12,10 @@
 #define C_YELLOW "\033[33m"
 #define C_CYAN   "\033[36m"
 
-#define FORMATTED_AMOUNT_MAX_LEN   24
-#define FORMATTED_TIME_MAX_LEN     24
+#define DB_LINE_MAX_LEN          256
+#define LABEL_MAX_LEN            128
+#define FORMATTED_AMOUNT_MAX_LEN 24
+#define FORMATTED_TIME_MAX_LEN   24
 
 const char* CURRENCY_STRING = "$";
 
@@ -35,7 +37,7 @@ typedef struct Movement
 {
   MovementType type;
   MovementCategory category;
-  const char* label;
+  char* label;
   float amount;
   time_t time;
   struct Movement* next;
@@ -58,10 +60,11 @@ const char* formatMovementType(MovementType type);
 const char* formatMovementCategory(MovementCategory category);
 char*       formatMovementAmount(float amount);
 
+Movement* readMovements(const char* filePath);
 void      listMovements(Movement* movements);
 void      listMovementsWithOptions(Movement* movements, MovementListingFlag flags);
-Movement* createMovement(MovementType type, MovementCategory category, const char* label, float amount, time_t time);
-void      addMovement(Movement** movements, MovementType type, MovementCategory category, const char* label, float amount, time_t time);
+Movement* createMovement(MovementType type, MovementCategory category, char* label, float amount, time_t time);
+void      addMovement(Movement** movements, MovementType type, MovementCategory category, char* label, float amount, time_t time);
 
 float getMovementSum(Movement* movements);
 float getMovementSum(Movement* movements);
@@ -73,9 +76,11 @@ bool isOfCategory(Movement* movement, void* category);
 Movement* filterMovements(Movement* movements, MovementFilterFn predicate);
 Movement* filterMovementsWithParameter(Movement* movements, MovementFilterWithParameterFn predicate, void* parameter);
 
-int main()
+int main(int argc, char** argv)
 {
-  Movement* movements = NULL;
+  Movement* movements = readMovements("example.expc");
+  listMovements(movements);
+  printf("-----\n");
 
   addMovement(&movements, PROFIT, JOB, "Stole coins from work", 0.52f, getTimeFromString("2024-01-01 12:00:00"));
   addMovement(&movements, LOSS, FOOD, "McDonald's Fries", 1.90f, getTimeFromString("2024-01-01 12:01:00"));
@@ -166,6 +171,40 @@ char* formatMovementAmount(float amount)
   static char formattedString[FORMATTED_AMOUNT_MAX_LEN];
   sprintf(formattedString, "%.2f %s", amount, CURRENCY_STRING);
   return formattedString;
+}
+
+Movement* readMovements(const char* filePath)
+{
+  FILE* movementsFile = fopen(filePath, "r");
+  if (movementsFile == NULL)
+  {
+    return NULL;
+  }
+
+  char line[DB_LINE_MAX_LEN];
+  Movement* head = NULL;
+
+  while (fgets(line, sizeof(line), movementsFile))
+  {
+    MovementType type;
+    MovementCategory category;
+    float amount;
+    time_t time;
+    char* label = malloc(sizeof(char) * LABEL_MAX_LEN);
+
+    sscanf(
+      line,
+      "%d;%d;%f;%d;%s",
+      &type,
+      &category,
+      &amount,
+      &time,
+      label
+    );
+    addMovement(&head, type, category, label, amount, time);
+  }
+
+  return head;
 }
 
 void listMovements(Movement* movements)
@@ -269,7 +308,7 @@ void listMovementsWithOptions(Movement* movements, MovementListingFlag flags)
   }
 }
 
-Movement* createMovement(MovementType type, MovementCategory category, const char* label, float amount, time_t time)
+Movement* createMovement(MovementType type, MovementCategory category, char* label, float amount, time_t time)
 {
   Movement* movement = (Movement*)malloc(sizeof(Movement));
   movement->type = type;
@@ -281,7 +320,7 @@ Movement* createMovement(MovementType type, MovementCategory category, const cha
   return movement;
 }
 
-void addMovement(Movement** movements, MovementType type, MovementCategory category, const char* label, float amount, time_t time)
+void addMovement(Movement** movements, MovementType type, MovementCategory category, char* label, float amount, time_t time)
 {
   Movement* newMovement = createMovement(type, category, label, amount, time);
 
