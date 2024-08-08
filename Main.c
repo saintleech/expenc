@@ -72,10 +72,11 @@ void      addMovement(Movement** movements, MovementType type, MovementCategory 
 void      addMovementToDatabase(Movement* movement, const char* filePath);
 
 float getMovementSum(Movement* movements);
-float getMovementSum(Movement* movements);
 
 bool isProfit(Movement* movement);
 bool isLoss(Movement* movement);
+bool isInYear(Movement* movement, void* year);
+bool isInMonth(Movement* movement, void* month);
 bool isOfCategory(Movement* movement, void* category);
 
 Movement* filterMovements(Movement* movements, MovementFilterFn predicate);
@@ -94,6 +95,16 @@ int main(int argc, char** argv)
   }
 
   Movement* movements = readMovements("example.expc");
+  movements = filterMovementsWithParameter(
+    movements,
+    isInYear,
+    (void*)(intptr_t)2024
+  );
+  movements = filterMovementsWithParameter(
+    movements,
+    isInMonth,
+    (void*)(intptr_t)1
+  );
   listMovements(movements);
 
   float sum = getMovementSum(movements);
@@ -458,6 +469,20 @@ bool isLoss(Movement* movement)
 bool isOfCategory(Movement* movement, void* category)
 {
   return movement->category == (MovementCategory)category;
+}
+
+bool isInYear(Movement* movement, void* year)
+{
+  struct tm* tm = localtime(&movement->time);
+  int comparedYear = (int)(intptr_t)year;
+  return tm->tm_year + 1900 == comparedYear;
+}
+
+bool isInMonth(Movement* movement, void* month)
+{
+  struct tm* tm = localtime(&movement->time);
+  int comparedMonth = (int)(intptr_t)month;
+  return tm->tm_mon + 1 == comparedMonth;
 }
 
 Movement* filterMovements(Movement* movements, MovementFilterFn predicate)
